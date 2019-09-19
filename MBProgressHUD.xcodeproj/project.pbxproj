@@ -12,6 +12,8 @@
 		6C99EAA423336D9500DEDB78 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 6C99EAA223336D9500DEDB78 /* Main.storyboard */; };
 		6C99EAA623336D9700DEDB78 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6C99EAA523336D9700DEDB78 /* Assets.xcassets */; };
 		6C99EAA923336D9700DEDB78 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 6C99EAA723336D9700DEDB78 /* LaunchScreen.storyboard */; };
+		6C99EAB22333728200DEDB78 /* ZCSomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C99EAB02333728200DEDB78 /* ZCSomeView.swift */; };
+		6C99EAB32333728200DEDB78 /* MBProgressHUD.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C99EAB12333728200DEDB78 /* MBProgressHUD.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -22,6 +24,8 @@
 		6C99EAA523336D9700DEDB78 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		6C99EAA823336D9700DEDB78 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		6C99EAAA23336D9700DEDB78 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		6C99EAB02333728200DEDB78 /* ZCSomeView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ZCSomeView.swift; sourceTree = "<group>"; };
+		6C99EAB12333728200DEDB78 /* MBProgressHUD.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MBProgressHUD.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -56,6 +60,8 @@
 			children = (
 				6C99EA9E23336D9500DEDB78 /* AppDelegate.swift */,
 				6C99EAA023336D9500DEDB78 /* ViewController.swift */,
+				6C99EAB12333728200DEDB78 /* MBProgressHUD.swift */,
+				6C99EAB02333728200DEDB78 /* ZCSomeView.swift */,
 				6C99EAA223336D9500DEDB78 /* Main.storyboard */,
 				6C99EAA523336D9700DEDB78 /* Assets.xcassets */,
 				6C99EAA723336D9700DEDB78 /* LaunchScreen.storyboard */,
@@ -136,7 +142,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				6C99EAA123336D9500DEDB78 /* ViewController.swift in Sources */,
+				6C99EAB22333728200DEDB78 /* ZCSomeView.swift in Sources */,
 				6C99EA9F23336D9500DEDB78 /* AppDelegate.swift in Sources */,
+				6C99EAB32333728200DEDB78 /* MBProgressHUD.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
