@@ -107,12 +107,368 @@ public class MBProgressHUD: UIView {
         fatalError("init(coder:) has not been implemented")
     }
     
-    public func commonInit() {
-        
+    fileprivate func commonInit() {
+        print("\(#function) ==>\(count+=1)")
         // Set default values for properties
+        animationType = MBProgressHUDAnimation.fade
+        mode = MBProgressHUDMode.indeterminate
+        margin = 20
+        defaultMotionEffectsEnabled = true
+        contentColor = UIColor(white: 0, alpha: 0.7)
         
         
+        // Transparent background如果开发中UIView.background是不透明的，opaque设置为YES， 如果opaque设置NO，那么color的alpha应该小于1.
+        isOpaque = false
+        backgroundColor = UIColor.clear
+        // Make it invisible for now
+        alpha = 0
+        autoresizingMask = UIView.AutoresizingMask(rawValue: UIView.AutoresizingMask.flexibleWidth.rawValue | UIView.AutoresizingMask.flexibleHeight.rawValue)
+        layer.allowsGroupOpacity = false
         
+        
+        #if !TARGET_OS_TV
+        NotificationCenter.default.addObserver(self, selector: #selector(statusBarOrientationDidChange(_:)), name: UIApplication.didChangeStatusBarOrientationNotification, object: nil)
+        #endif
+    }
+    
+    deinit {
+        #if !TARGET_OS_TV
+        NotificationCenter.default.removeObserver(self, name: UIApplication.didChangeStatusBarOrientationNotification, object: nil)
+        #endif
+
+    }
+    
+    func done() {
+        print("\(#function) ==>\(count+=1)")
+
+        
+        
+    }
+    
+    
+    // MARK: - UI
+    private func setupViews() {
+        print("\(#function) ==>\(count+=1)")
+
+        let defaultColor = contentColor
+        backgroundView.frame = self.bounds
+        backgroundView.style = MBProgressHUDBackgroundStyle.solidColor
+        backgroundView.color = UIColor.clear
+        backgroundView.autoresizingMask = UIView.AutoresizingMask(rawValue: UIView.AutoresizingMask.flexibleWidth.rawValue | UIView.AutoresizingMask.flexibleHeight.rawValue)
+        backgroundView.alpha = 0
+        self.addSubview(backgroundView)
+        
+        bezelView.translatesAutoresizingMaskIntoConstraints = false
+        bezelView.layer.cornerRadius = 5
+        bezelView.alpha = 0
+        self.addSubview(bezelView)
+        updateBezelMotionEffects()
+        
+        label.adjustsFontSizeToFitWidth = false
+        label.textAlignment = NSTextAlignment.center
+        label.textColor = defaultColor
+        label.font = UIFont.boldSystemFont(ofSize: 16)
+        label.isOpaque = false
+        label.backgroundColor = UIColor.clear
+        
+        detailsLabel.adjustsFontSizeToFitWidth = false
+        detailsLabel.textAlignment = NSTextAlignment.center
+        detailsLabel.textColor = defaultColor
+        detailsLabel.font = UIFont.boldSystemFont(ofSize: 16)
+        detailsLabel.isOpaque = false
+        detailsLabel.backgroundColor = UIColor.clear
+        detailsLabel.numberOfLines = 0
+        
+        button.titleLabel?.font = UIFont.boldSystemFont(ofSize: 12)
+        button.setTitleColor(defaultColor, for: .normal)
+        
+        for view in [label, detailsLabel, button] {
+            view.translatesAutoresizingMaskIntoConstraints = false
+            view.setContentHuggingPriority(UILayoutPriority(rawValue: 998), for: .horizontal)
+            view.setContentCompressionResistancePriority(UILayoutPriority(rawValue: 998), for: .vertical)
+            bezelView.addSubview(view)
+        }
+        
+        topSpacer.translatesAutoresizingMaskIntoConstraints = false
+        topSpacer.isHidden = true
+        bezelView.addSubview(topSpacer)
+        
+        bottomSpacer.translatesAutoresizingMaskIntoConstraints = false
+        bottomSpacer.isHidden = true
+        bezelView.addSubview(bottomSpacer)
+        
+    }
+    
+    
+    private func updateIndicators() {
+        print("\(#function) ==>\(count+=1)")
+        
+        // indicator 正在以activity 显示
+        let isActivityIndicator = indicator != nil && indicator!.isKind(of: UIActivityIndicatorView.self)
+        let isRoundIndicator = indicator != nil && indicator!.isKind(of: MBRoundProgressView.self)
+        let isBarIndicator = indicator != nil && indicator!.isKind(of: MBBarProgressView.self)
+        // indicator 正在以
+        let isCustomView = indicator != nil && customView == indicator
+        
+        switch mode {
+        case .indeterminate:    //转菊花
+            if !isActivityIndicator {
+                // Update to indeterminate indicator
+                indicator!.removeFromSuperview()
+                indicator = UIActivityIndicatorView(style: .whiteLarge)
+                (indicator as! UIActivityIndicatorView).startAnimating()
+                self.bezelView.addSubview(indicator!)
+            }
+        case .determinateHorizontalBar:  // 水平进度条
+            if !isBarIndicator {
+                indicator!.removeFromSuperview()
+                indicator = MBBarProgressView()
+                self.bezelView.addSubview(indicator!)
+            }
+        case .determinate:  // 圆形饼状图
+            if !isRoundIndicator {
+                // Update to determinante indicator
+                indicator!.removeFromSuperview()
+                indicator = MBRoundProgressView()
+                (indicator as! MBRoundProgressView).annular = false
+                bezelView.addSubview(indicator!)
+            }
+        case .annularDeterminate:  // 圆形环状图
+            if !isRoundIndicator {
+                // Update to determinante indicator
+                indicator!.removeFromSuperview()
+                indicator = MBRoundProgressView()
+                (indicator as! MBRoundProgressView).annular = true
+                bezelView.addSubview(indicator!)
+            }
+        case .customView:
+            if !isCustomView {
+                // Update custom view indicator
+                indicator!.removeFromSuperview()
+                indicator = customView
+                bezelView.addSubview(indicator!)
+            }
+        case .text:
+            if indicator != nil {
+                indicator!.removeFromSuperview()
+                indicator = nil
+            }
+        }
+        
+        if let indicatorView = indicator {
+            indicatorView.translatesAutoresizingMaskIntoConstraints = false
+            indicatorView.setContentHuggingPriority(UILayoutPriority(rawValue: 998), for: .horizontal)
+            indicatorView.setContentCompressionResistancePriority(UILayoutPriority(rawValue: 998), for: .vertical)
+            
+            if indicatorView.responds(to: #selector(setter: progress)) {
+                indicatorView.setValue(progress, forKey: "progress")
+            }
+            
+        }
+        
+        updateViewsFor(color: contentColor)
+        self.setNeedsUpdateConstraints()
+        
+    }
+    
+    /// 设置hud内容显示颜色字体,indicator
+    func updateViewsFor(color: UIColor) {
+        print("\(#function) ==>\(count+=1)")
+        label.textColor = color
+        detailsLabel.textColor = color
+        button.setTitleColor(color, for: .normal)
+        
+        // UIAppearance settings are prioritized. If they are preset the set color is ignored.
+        if let indicatorView = indicator {
+            if indicatorView.isKind(of: UIActivityIndicatorView.self) {
+                
+                let appearance = UIActivityIndicatorView.appearance(whenContainedInInstancesOf: [MBProgressHUD.self])
+                if appearance.color == nil {
+                    (indicatorView as! UIActivityIndicatorView).color = color
+                }
+            }else if indicatorView.isKind(of: MBRoundProgressView.self) {
+                let appearance = MBRoundProgressView.appearance(whenContainedInInstancesOf: [MBProgressHUD.self])
+                
+//                if appearance.progressTintColor == nil {
+//                    (indicator as! MBRoundProgressView).progressTintColor = color
+//                }
+
+            }else if indicatorView.isKind(of: MBBarProgressView.self) {
+                let appearance = MBBarProgressView.appearance(whenContainedInInstancesOf: [MBProgressHUD.self])
+
+            }else {
+                indicatorView.tintColor = color
+            }
+            
+            
+            
+            
+        }
+    }
+    
+    
+    
+    
+    @objc func statusBarOrientationDidChange(_ notif: Notification) {
+        print("\(#function) ==>\(count+=1)")
+        if superview != nil {
+            updateForCurrentOrientation(animated: true)
+        }
+    }
+    
+    
+    private func updateForCurrentOrientation(animated: Bool) {
+        print("\(#function) ==>\(count+=1)")
+        // Stay in sync with the superview in any case
+        self.frame = superview?.bounds ?? UIScreen.main.bounds
+    }
+    
+    /// 更新面板(外壳)运动效果
+    private func updateBezelMotionEffects() {
+        print("\(#function) ==>\(count+=1)")
+        guard bezelView.responds(to: #selector(addMotionEffect(_:))) else { return }
+        
+        if defaultMotionEffectsEnabled {
+            let effectOffset: CGFloat = 10
+            
+            let effectX = UIInterpolatingMotionEffect(keyPath: "center.x", type: UIInterpolatingMotionEffect.EffectType.tiltAlongHorizontalAxis)
+            effectX.maximumRelativeValue = effectOffset
+            effectX.minimumRelativeValue = -effectOffset
+            
+            let effectY = UIInterpolatingMotionEffect(keyPath: "center.y", type: UIInterpolatingMotionEffect.EffectType.tiltAlongVerticalAxis)
+            effectY.maximumRelativeValue = effectOffset
+            effectY.minimumRelativeValue = -effectOffset
+
+            let group = UIMotionEffectGroup()
+            group.motionEffects = [effectX,effectY]
+            bezelView.addMotionEffect(group)
+        }else {
+            for effect in bezelView.motionEffects {
+                bezelView.removeMotionEffect(effect)
+            }
+        }
+    }
+    
+    // MARK: - Layout
+    
+    public override func updateConstraints() {
+        var bezelConstraints:[NSLayoutConstraint] = []
+        let metrics = ["margin": margin]
+        var subviews = [topSpacer, label, detailsLabel, button, bottomSpacer]
+        
+        // Remove existing constraints
+        self.removeConstraints(self.constraints)
+        topSpacer.removeConstraints(topSpacer.constraints)
+        bottomSpacer.removeConstraints(bottomSpacer.constraints)
+        if !self.bezelConstraints.isEmpty {
+            bezelView.removeConstraints(self.bezelConstraints)
+            self.bezelConstraints.removeAll()
+        }
+        
+        // Center bezel in container (self), applying the offset if set
+        let offsetT = self.offset
+        var centeringConstraints:[NSLayoutConstraint] = []
+        centeringConstraints.append(NSLayoutConstraint(item: bezelView, attribute: .centerX, relatedBy: .equal, toItem: self, attribute: .centerX, multiplier: 1, constant: offsetT.x))
+        centeringConstraints.append(NSLayoutConstraint(item: bezelView, attribute: .centerY, relatedBy: .equal, toItem: self, attribute: .centerY, multiplier: 1, constant: offsetT.y))
+        applyPriority(998, to: centeringConstraints)
+        self.addConstraints(centeringConstraints)
+        
+        // Ensure minimum side margin is kept
+        var sideConstraints:[NSLayoutConstraint] = []
+        sideConstraints += NSLayoutConstraint.constraints(withVisualFormat: "|-(>=margin)-[bezelView]-(>=margin)-|", options: NSLayoutConstraint.FormatOptions(rawValue: 0), metrics: metrics, views: ["bezelView":bezelView])
+        sideConstraints += NSLayoutConstraint.constraints(withVisualFormat: "V:|-(>=margin)-[bezel]-(>=margin)-|", options: NSLayoutConstraint.FormatOptions(rawValue: 0), metrics: metrics, views: ["bezelView":bezelView])
+        applyPriority(999, to: sideConstraints)
+        self.addConstraints(sideConstraints)
+        
+        // Minimum bezel size, if set
+        if !minSize.equalTo(CGSize.zero) {
+            var minSizeConstraints: [NSLayoutConstraint] = []
+            minSizeConstraints.append(NSLayoutConstraint(item: bezelView, attribute: .width, relatedBy: .greaterThanOrEqual, toItem: nil, attribute: .notAnAttribute, multiplier: 1, constant: minSize.width))
+            minSizeConstraints.append(NSLayoutConstraint(item: bezelView, attribute: .height, relatedBy: .greaterThanOrEqual, toItem: nil, attribute: .notAnAttribute, multiplier: 1, constant: minSize.height))
+            applyPriority(997, to: minSizeConstraints)
+            bezelConstraints += minSizeConstraints
+        }
+        
+        // Square aspect ratio, if set
+        if square {
+            let square = NSLayoutConstraint(item: bezelView, attribute: .height, relatedBy: .equal, toItem: bezelView, attribute: .width, multiplier: 1, constant: 0)
+            square.priority = UILayoutPriority(rawValue: 997)
+            bezelConstraints.append(square)
+        }
+        
+        // Top and bottom spacing
+        topSpacer.addConstraint(NSLayoutConstraint(item: topSpacer, attribute: .height, relatedBy: .greaterThanOrEqual, toItem: nil, attribute: .notAnAttribute, multiplier: 1, constant: margin))
+        bottomSpacer.addConstraint(NSLayoutConstraint(item: bottomSpacer, attribute: .height, relatedBy: .greaterThanOrEqual, toItem: nil, attribute: .notAnAttribute, multiplier: 1, constant: margin))
+        // Top and bottom spaces should be equal
+        bezelConstraints.append(NSLayoutConstraint(item: topSpacer, attribute: .height, relatedBy: .equal, toItem: bottomSpacer, attribute: .height, multiplier: 1, constant: 0))
+        
+        // Layout subviews in bezel
+        var paddingConstraints: [NSLayoutConstraint] = []
+        for (index,view) in subviews.enumerated() {
+            // Center in bezel
+            bezelConstraints += NSLayoutConstraint.constraints(withVisualFormat: "|-(>=margin)-[view]-(>=margin)-|", options: NSLayoutConstraint.FormatOptions(rawValue: 0), metrics: metrics, views: ["view":view])
+            // Element spacing
+            if index == 0 {
+                // First, ensure spacing to bezel edge
+                bezelConstraints.append(NSLayoutConstraint(item: view, attribute: .top, relatedBy: .equal, toItem: bezelView, attribute: .top, multiplier: 1, constant: 0))
+            }
+            else if index == subviews.count - 1 {
+                // Last, ensure spacing to bezel edge
+                bezelConstraints.append(NSLayoutConstraint(item: view, attribute: .bottom, relatedBy: .equal, toItem: bezelView, attribute: .bottom, multiplier: 1, constant: 0))
+            }
+            if index > 0 {
+                // Has previous
+                let padding = NSLayoutConstraint(item: view, attribute: .top, relatedBy: .equal, toItem: subviews[index-1], attribute: .bottom, multiplier: 1, constant: 0)
+                bezelConstraints.append(padding)
+                paddingConstraints.append(padding)
+            }
+        }
+        
+        bezelView.addConstraints(bezelConstraints)
+        self.bezelConstraints = bezelConstraints
+        
+        self.paddingConstraints = paddingConstraints
+        updatePaddingConstraints()
+        super.updateConstraints()
+    }
+    
+    public override func layoutSubviews() {
+        print("\(#function) ==>\(count+=1)")
+        // There is no need to update constraints if they are going to
+        // be recreated in [super layoutSubviews] due to needsUpdateConstraints being set.
+        // This also avoids an issue on iOS 8, where updatePaddingConstraints
+        // would trigger a zombie object access.
+        if !self.needsUpdateConstraints() {
+            updatePaddingConstraints()
+        }
+        
+        super.layoutSubviews()
+    }
+    
+    
+    func updatePaddingConstraints() {
+        print("\(#function) ==>\(count+=1)")
+        // Set padding(填充) dynamically(动态的), depending on whether the view is visible or not
+        var hasVisibleAncestors = false
+        
+        for padding in paddingConstraints {
+            let firsetView = padding.firstItem as! UIView
+            let secondView = padding.secondItem as! UIView
+            let firstVisible = !firsetView.isHidden && !firsetView.intrinsicContentSize.equalTo(CGSize.zero)
+            let secondVisible = !secondView.isHidden && !secondView.intrinsicContentSize.equalTo(CGSize.zero)
+            // Set if both views are visible or if there's a visible view on top that doesn't have padding
+            // added relative to the current view yet
+            padding.constant = (firstVisible && (secondVisible || hasVisibleAncestors)) ? MBDefaultPadding : 0;
+            hasVisibleAncestors = hasVisibleAncestors || secondVisible
+        }
+    }
+    
+    
+    
+    func applyPriority(_ priority: Float, to constraints:[NSLayoutConstraint]) {
+        for constraint in constraints {
+            constraint.priority = UILayoutPriority(rawValue: priority)
+        }
     }
     
     
@@ -168,7 +524,7 @@ public class MBProgressHUD: UIView {
     
     /// A color that gets forwarded to all labels and supported indicators. Also sets the tintColor for custom views on iOS 7+. Set to nil to manage color individually.
     /// Defaults to semi-translucent black on iOS 7 and later and white on earlier iOS versions. "UI_APPEARANCE_SELECTOR"可以统一设置全局作用
-    public var contentColor = UIColor.white
+    public var contentColor = UIColor(white: 0, alpha: 0.7)
     
     /// The animation type that should be used when the HUD is shown and hidden.
     public var animationType = MBProgressHUDAnimation.fade
@@ -185,35 +541,46 @@ public class MBProgressHUD: UIView {
     /// Force the HUD dimensions(尺寸,大小) to be equal if possible.
     public var square = false
     
-    /// When enabled, the bezel center gets slightly affected by the device accelerometer data.(运动效果,当启用时,边框中心会受到设备加速度计数据的轻微影响) Has no effect on iOS < 7.0. Defaults to YES.
+    /// When enabled, the bezel center gets slightly affected by the device accelerometer data.(运动效果,当启用时,边框中心会受到设备加速度计数据的轻微影响) Has no effect on iOS < 7.0. Defaults to true.
     public var defaultMotionEffectsEnabled = true
     
     // MARK: - Progress
 
     /// The progress of the progress indicator, from 0.0 to 1.0. Defaults to 0.0.
-    public var progress: CGFloat = 0.0
+    @objc public var progress: CGFloat = 0.0
     
     /// The NSProgress object feeding(输送,提供) the progress information to the progress indicator.
     public var progressObject:Progress!
     
-    /// The view containing the labels and indicator (or customView).
-    public var bezelView: MBBackgroundView!
+    /// 面板外壳View.The view containing the labels and indicator (or customView).
+    public let bezelView = MBBackgroundView()
     
     /// View covering the entire HUD area, placed behind bezelView.
-    public var backgroundView: MBBackgroundView!
+    public let backgroundView = MBBackgroundView()
     
     /// The UIView (e.g., a UIImageView) to be shown when the HUD is in MBProgressHUDModeCustomView.The view should implement(实现) intrinsicContentSize for proper sizing. For best results use approximately(大约) 37 by 37 pixels.
     public var customView: UIView?
     
     /// A label that holds an optional short message to be displayed below the activity indicator. The HUD is automatically resized to fit the entire(全部的) text.
-    public var label: UILabel!
+    public let label = UILabel()
     
     ///  A label that holds an optional details message displayed below the labelText message. The details text can span(跨越) multiple lines.
-    public var detailsLabel: UILabel!
+    public let detailsLabel = UILabel()
     
     /// A button that is placed below the labels. Visible only if a target / action is added.
-    public var button: UIButton!
+    public let button = MBProgressHUDRoundedButton(type: .custom)
     
+////////////////////////// fileprivate or internal  ////////////////////////////
+    var count:Int = 0
+    var topSpacer = UIView()
+    var bottomSpacer = UIView()
+    var indicator: UIView?
+    // = UIActivityIndicatorView(style: UIActivityIndicatorView.Style.whiteLarge)
+    var bezelConstraints: [NSLayoutConstraint] = []
+    var paddingConstraints: [NSLayoutConstraint] = []
+
+    
+    let MBDefaultPadding: CGFloat = 4
     
 }
 
@@ -247,7 +614,7 @@ public class MBBackgroundView: UIView {
 class MBRoundProgressView: UIView {
     
     /// Progress (0.0 to 1.0)
-    var progress: Float = 0.0
+    @objc var progress: Float = 0.0
     
     /// Indicator progress color. Defaults to white color.
     var progressTintColor: UIColor = UIColor.white
@@ -264,7 +631,7 @@ class MBRoundProgressView: UIView {
 class MBBarProgressView: UIView {
     
     ///  Progress (0.0 to 1.0)
-    var progress: Float = 0.0
+    @objc var progress: Float = 0.0
     
     ///  * Bar border line color. Defaults to white.
     var lineColor: UIColor = UIColor.white
@@ -277,4 +644,7 @@ class MBBarProgressView: UIView {
     
 }
 
+public class MBProgressHUDRoundedButton: UIButton {
+    
+}
 
