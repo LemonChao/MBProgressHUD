@@ -138,6 +138,8 @@ public class MBProgressHUD: UIView {
 
     }
     
+    // mark: - Show & Hide
+    
     func done() {
         print("\(#function) ==>\(count+=1)")
 
