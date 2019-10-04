@@ -15,7 +15,7 @@ class ZCSomeView: UIView {
         
     }
     
-    let name = "sdfds"
+    let name = "This is a test View"
     
     var title: String?
     
