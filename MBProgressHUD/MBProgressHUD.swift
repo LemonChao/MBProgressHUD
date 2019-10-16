@@ -54,7 +54,7 @@ public enum MBProgressHUDBackgroundStyle {
  */
 public class MBProgressHUD: UIView {
 
-    
+    // MARK: - Class method
     /// Creates a new HUD, adds it to provided view and shows it. The counterpart(配对) to this method is hideHUDForView:animated:.
     ///
     /// - Parameters:
@@ -89,7 +89,7 @@ public class MBProgressHUD: UIView {
         return nil
     }
     
-    
+    // MARK: - LiftCycle
     /// A convenience constructor that initializes the HUD with the view's bounds. Calls the designated constructor with view.bounds as the parameter.
     ///
     /// - Parameter view: The view instance that will provide the bounds for the HUD. Should be the same instance as the HUD's superview (i.e., the view that the HUD will be added to).
@@ -138,8 +138,69 @@ public class MBProgressHUD: UIView {
 
     }
     
-    // mark: - Show & Hide
+    // MARK: - Show & Hide
     
+    /// Displays the HUD.
+    ///
+    /// - Parameter animated: If set to YES the HUD will appear using the current animationType. If set to NO the HUD will not use animations while appearing.
+    ///
+    /// - note: You need to make sure that the main thread completes its run loop soon after this method call so that the user interface can be updated. Call this method when your task is already set up to be executed in a new thread (e.g., when using something like NSOperation or making an asynchronous call like NSURLRequest).
+    /// - see: animationType
+    public func show(animated: Bool) {
+        self.minShowTimer.invalidate()
+        self.useAnimation = animated
+        self.finished = false
+        // If the grace time is set, postpone the HUD display
+        if self.graceTime > 0.0 {
+            let timer = Timer(timeInterval: self.graceTime, target: self, selector: #selector(handleGraceTimer(_:)), userInfo: nil, repeats: false)
+            RunLoop.current.add(timer, forMode: .common)
+            self.graceTimer = timer;
+            return
+        }
+        else { // ... otherwise show the HUD immediately
+            self.showUsing(self.useAnimation)
+        }
+    }
+    
+    
+    /// Hides the HUD. This still calls the hudWasHidden: delegate. This is the counterpart of the show: method. Use it to hide the HUD when your task completes.
+    ///
+    /// - Parameter animated: If set to YES the HUD will disappear using the current animationType. If set to NO the HUD will not use animations while disappearing.
+    /// - see: animationType
+    public func hide(animated: Bool) {
+        self.graceTimer.invalidate()
+        self.useAnimation = animated
+        self.finished = true
+        // If the minShow time is set, calculate how long the HUD was shown,and postpone the hiding operation if necessary
+        if self.minShowTime > 0.0 && (self.showStarted != nil) {
+            let interv = Date().timeIntervalSince(self.showStarted)
+            if interv < self.minShowTime {
+                let timer = Timer(timeInterval: self.minShowTime-interv, target: self, selector: #selector(handleMinShowTimer(_:)), userInfo: nil, repeats: false)
+                RunLoop.current.add(timer, forMode: .common)
+                self.minShowTimer = timer
+                return
+                
+            }
+            
+        }
+        // ... otherwise hide the HUD immediately
+        self.hideUsing(self.useAnimation)
+        
+    }
+    
+    /// Hides the HUD after a delay. This still calls the hudWasHidden: delegate. This is the counterpart of the show: method. Use it to hide the HUD when your task completes.
+    ///
+    /// - Parameters:
+    ///   - animated: If set to YES the HUD will disappear using the current animationType. If set to NO the HUD will not use animations while disappearing.
+    ///   - delay: delay in seconds until the HUD is hidden.
+    public func hide(animated: Bool, after delay: TimeInterval) {
+        // Cancel any scheduled hideAnimated:afterDelay: calls
+        self.hideDelayTimer.invalidate()
+        
+        let timer = Timer(timeInterval: delay, target: self, selector: #selector(handleHideTimer(_:)), userInfo: animated, repeats: false)
+        RunLoop.current.add(timer, forMode: .common)
+        self.hideDelayTimer = timer;
+    }
     func done() {
         print("\(#function) ==>\(count+=1)")
 
@@ -147,7 +208,37 @@ public class MBProgressHUD: UIView {
         
     }
     
+    // MARK: Timer callbacks
+    @objc func handleGraceTimer(_ timer: Timer) {
+        if !finished {
+            showUsing(useAnimation)
+        }
+        
+        
+    }
     
+    @objc func handleMinShowTimer(_ timer: Timer) {
+        
+    }
+    
+    @objc func handleHideTimer(_ timer: Timer) {
+        
+    }
+    
+    
+    // MARK: - View Hierrarchy
+    public override func didMoveToSuperview() {
+        updateForCurrentOrientation(animated: false)
+    }
+    
+    // MARK: - Internal show & hide operations
+    func showUsing(_ animated: Bool) {
+        
+    }
+    
+    func hideUsing(_ animated: Bool) {
+        
+    }
     // MARK: - UI
     private func setupViews() {
         print("\(#function) ==>\(count+=1)")
@@ -474,35 +565,6 @@ public class MBProgressHUD: UIView {
     }
     
     
-    /// Displays the HUD.
-    ///
-    /// - Parameter animated: If set to YES the HUD will appear using the current animationType. If set to NO the HUD will not use animations while appearing.
-    ///
-    /// - note: You need to make sure that the main thread completes its run loop soon after this method call so that the user interface can be updated. Call this method when your task is already set up to be executed in a new thread (e.g., when using something like NSOperation or making an asynchronous call like NSURLRequest).
-    /// - see: animationType
-    public func show(animated: Bool) {
-        
-    }
-    
-    
-    /// Hides the HUD. This still calls the hudWasHidden: delegate. This is the counterpart of the show: method. Use it to hide the HUD when your task completes.
-    ///
-    /// - Parameter animated: If set to YES the HUD will disappear using the current animationType. If set to NO the HUD will not use animations while disappearing.
-    /// - see: animationType
-    public func hide(animated: Bool) {
-        
-    }
-    
-    
-    /// Hides the HUD after a delay. This still calls the hudWasHidden: delegate. This is the counterpart of the show: method. Use it to hide the HUD when your task completes.
-    ///
-    /// - Parameters:
-    ///   - animated: If set to YES the HUD will disappear using the current animationType. If set to NO the HUD will not use animations while disappearing.
-    ///   - delay: delay in seconds until the HUD is hidden.
-    public func hide(animated: Bool, after delay: TimeInterval) {
-        
-    }
-    
     /// The HUD delegate object. Receives HUD state notifications.
     public var delegate: MBProgressHUDDelegate?
     
@@ -572,7 +634,7 @@ public class MBProgressHUD: UIView {
     /// A button that is placed below the labels. Visible only if a target / action is added.
     public let button = MBProgressHUDRoundedButton(type: .custom)
     
-////////////////////////// fileprivate or internal  ////////////////////////////
+////////////////////////// internal  ////////////////////////////
     var count:Int = 0
     var topSpacer = UIView()
     var bottomSpacer = UIView()
@@ -584,6 +646,15 @@ public class MBProgressHUD: UIView {
     
     let MBDefaultPadding: CGFloat = 4
     
+    ////////////////////////// fileprivate  ////////////////////////////
+    fileprivate var finished:Bool = true
+    /// 正在使用的动画模式
+    fileprivate var useAnimation = true
+    fileprivate var showStarted: Date!
+    fileprivate var minShowTimer: Timer!
+    fileprivate var graceTimer: Timer!
+    fileprivate var hideDelayTimer: Timer!
+    fileprivate var progressObjectDisplayLink: CADisplayLink!
 }
 
 public protocol MBProgressHUDDelegate: class {
