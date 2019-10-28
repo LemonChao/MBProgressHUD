@@ -147,6 +147,7 @@ public class MBProgressHUD: UIView {
     /// - note: You need to make sure that the main thread completes its run loop soon after this method call so that the user interface can be updated. Call this method when your task is already set up to be executed in a new thread (e.g., when using something like NSOperation or making an asynchronous call like NSURLRequest).
     /// - see: animationType
     public func show(animated: Bool) {
+        MBMainThreadAssert
         self.minShowTimer.invalidate()
         self.useAnimation = animated
         self.finished = false
@@ -168,6 +169,7 @@ public class MBProgressHUD: UIView {
     /// - Parameter animated: If set to YES the HUD will disappear using the current animationType. If set to NO the HUD will not use animations while disappearing.
     /// - see: animationType
     public func hide(animated: Bool) {
+        MBMainThreadAssert
         self.graceTimer.invalidate()
         self.useAnimation = animated
         self.finished = true
@@ -201,28 +203,20 @@ public class MBProgressHUD: UIView {
         RunLoop.current.add(timer, forMode: .common)
         self.hideDelayTimer = timer;
     }
-    func done() {
-        print("\(#function) ==>\(count+=1)")
-
-        
-        
-    }
     
-    // MARK: Timer callbacks
+    // MARK: - Timer callbacks
     @objc func handleGraceTimer(_ timer: Timer) {
         if !finished {
             showUsing(useAnimation)
         }
-        
-        
     }
     
     @objc func handleMinShowTimer(_ timer: Timer) {
-        
+        hideUsing(useAnimation)
     }
     
     @objc func handleHideTimer(_ timer: Timer) {
-        
+        hide(animated: timer.userInfo as! Bool)
     }
     
     
@@ -233,12 +227,88 @@ public class MBProgressHUD: UIView {
     
     // MARK: - Internal show & hide operations
     func showUsing(_ animated: Bool) {
+        // Cancel any previous animations
+        self.bezelView.layer.removeAllAnimations()
+        self.backgroundView.layer.removeAllAnimations()
+        
+        // Cancel any scheduled hideAnimated:afterDelay: calls
+        self.hideDelayTimer.invalidate()
+        
+        self.showStarted = Date()
+        self.alpha = 1
+        
+        // Needed in case we hide and re-show with the same NSProgress object attached.
+        self.setNSProgressDisplayLinkEnabled(true)
+        
+        // Set up motion effects only at this point to avoid needlessly
+        // creating the effect if it was disabled after initialization.
+        updateBezelMotionEffects()
+        
+        if animated {
+            
+        }
         
     }
     
     func hideUsing(_ animated: Bool) {
         
     }
+    
+    func animateIn(_ animatingIn: Bool, withType: MBProgressHUDAnimation, completion: @escaping (_ finished: Bool) -> Void) {
+        var type = withType
+        if type == MBProgressHUDAnimation.zoom {
+            type = animatingIn ? .zoomIn : .zoomOut
+        }
+        
+        let small = CGAffineTransform(scaleX: 0.5, y: 0.5)
+        let large = CGAffineTransform(scaleX: 1.5, y: 1.5)
+        
+        // Set starting state
+        if animatingIn && bezelView.alpha == 0 && type == .zoomIn{
+            bezelView.transform = small
+        }else if animatingIn && bezelView.alpha == 0 && type == .zoomOut {
+            bezelView.transform = large
+        }
+        
+        // Perform animations
+        let animations = {() in
+            if animatingIn {
+                self.bezelView.transform = CGAffineTransform.identity
+            }else if !animatingIn && type == .zoomIn {
+                self.bezelView.transform = large
+            }else if !animatingIn && type == .zoomOut {
+                self.bezelView.transform = small
+            }
+            
+            let alpha: CGFloat = animatingIn ? 1 : 0
+            self.bezelView.alpha = alpha
+            self.backgroundView.alpha = alpha
+        }
+        
+        UIView.animate(withDuration: 0.3, delay: 0, usingSpringWithDamping: 1, initialSpringVelocity: 0, options: UIView.AnimationOptions.beginFromCurrentState, animations: animations, completion: completion)
+                
+    }
+    
+    func done() {
+        print("\(#function) ==>\(count+=1)")
+        self.setNSProgressDisplayLinkEnabled(false)
+        
+        if finished {
+            self.alpha = 0
+            if removeFromSuperViewOnHide {
+                self.removeFromSuperview()
+            }
+        }
+        
+        if self.completionBlock != nil {
+            self.completionBlock!()
+        }
+        if self.delegate != nil && (self.delegate?.responds(to: #selector(self.delegate?.hudDidHidden(_:))))! {
+            self.delegate?.hudDidHidden(self)
+        }
+        
+    }
+
     // MARK: - UI
     private func setupViews() {
         print("\(#function) ==>\(count+=1)")
@@ -564,12 +634,15 @@ public class MBProgressHUD: UIView {
         }
     }
     
+    func setNSProgressDisplayLinkEnabled(_ enabled: Bool) {
+        
+    }
     
     /// The HUD delegate object. Receives HUD state notifications.
     public var delegate: MBProgressHUDDelegate?
     
     /// Called after the HUD is hiden.
-    public var completionBlock: String?
+    public var completionBlock: (() -> Void)?
     
     /// Grace period(宽限期) is the time (in seconds) that the invoked method may be run without showing the HUD. If the task finishes before the grace time(宽限期) runs out, the HUD will not be shown at all.
     /// This may be used to prevent HUD display for very short tasks. Defaults to 0 (no grace time).
@@ -655,9 +728,10 @@ public class MBProgressHUD: UIView {
     fileprivate var graceTimer: Timer!
     fileprivate var hideDelayTimer: Timer!
     fileprivate var progressObjectDisplayLink: CADisplayLink!
+    fileprivate let MBMainThreadAssert = assert(Thread.isMainThread, "MBProgressHUD needs to be accessed on the main thread.")
 }
 
-public protocol MBProgressHUDDelegate: class {
+@objc public protocol MBProgressHUDDelegate: NSObjectProtocol {
     
     /// Called after the HUD was fully hidden from the screen.
      func hudDidHidden(_ hud: MBProgressHUD)

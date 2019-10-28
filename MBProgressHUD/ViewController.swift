@@ -13,7 +13,11 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         print("hello world !")
+        
+        MainAssert
         indicator = UIActivityIndicatorView(style: .whiteLarge)
+        
+        self.dismiss(animated: <#T##Bool#>, completion: <#T##(() -> Void)?##(() -> Void)?##() -> Void#>)
         
         if var view = indicator, view.isKind(of: UIActivityIndicatorView.self) {
             
@@ -30,7 +34,8 @@ class ViewController: UIViewController {
         
     }
     var indicator: UIView?
-    
+    fileprivate let MainAssert = assert(Thread.isMainThread, "MBProgressHUD needs to be accessed on the main thread.")
+
     
 }
 
